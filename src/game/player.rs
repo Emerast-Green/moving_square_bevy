@@ -7,10 +7,10 @@ use bevy::{
 
 // ==== Constants ====
 pub const PLAYER_DECELERATION_RATE: f32 = 0.8;
-pub const PLAYER_ACCELERATION: f32 = 1.5;
-pub const PLAYER_JUMP_STRENGTH: f32 = 10.0;
+pub const PLAYER_ACCELERATION: f32 = 2.5;
+pub const PLAYER_JUMP_STRENGTH: f32 = 8.0;
 pub const PLAYER_JUMP_TIME: u32 = 25;
-pub const PLAYER_MASS: f32 = 2.5;
+pub const PLAYER_MASS: f32 = 1.5;
 
 // ==== PLUGIN ====
 
@@ -22,16 +22,11 @@ impl Plugin for PlayerPlugin {
             // On Enter
             .add_systems(OnEnter(AppState::Game), spawn_player)
             // Update
-            .add_systems(
-                Update,
-                (handle_player_input)
-                    .run_if(in_state(AppState::Game))
-                    .run_if(in_state(SimulationState::Running)),
-            )
+
             // FixedUpdate
             .add_systems(
                 FixedUpdate,
-                (handle_player_obstacle_collision,update_player_physics).chain()
+                (handle_player_input,handle_player_obstacle_collision,update_player_physics).chain()
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(SimulationState::Running)),
             )

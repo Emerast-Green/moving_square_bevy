@@ -26,9 +26,9 @@ pub struct ObstacleComponent;
 pub fn spawn_obstacle(
     pos: Vec2,
     size: Vec2,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn((
         MaterialMesh2dBundle {
@@ -43,9 +43,10 @@ pub fn spawn_obstacle(
 }
 
 pub fn spawn_test_level(
-    commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    spawn_obstacle(Vec2::new(350.0,50.0), Vec2::new(600.0,50.0), commands, meshes, materials)
+    spawn_obstacle(Vec2::new(350.0,50.0), Vec2::new(600.0,50.0), &mut commands, &mut meshes, &mut materials);
+    spawn_obstacle(Vec2::new(350.0,100.0), Vec2::new(100.0,10.0), &mut commands, &mut meshes, &mut materials);
 }
