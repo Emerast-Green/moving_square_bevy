@@ -10,9 +10,9 @@ use rand::prelude::*;
 // ==== Constants ====
 pub const PLAYER_DECELERATION_RATE: f32 = 0.8;
 pub const PLAYER_ACCELERATION: f32 = 2.5;
-pub const PLAYER_JUMP_STRENGTH: f32 = 8.0;
-pub const PLAYER_JUMP_TIME: u32 = 25;
-pub const PLAYER_MASS: f32 = 1.5;
+pub const PLAYER_JUMP_STRENGTH: f32 = 7.0;
+pub const PLAYER_JUMP_TIME: u32 = 35;
+pub const PLAYER_MASS: f32 = 1.0;
 pub const VOLUME_DETERMINATION_BASE: f32 = 20.0;
 
 // ==== PLUGIN ====
@@ -151,6 +151,9 @@ pub fn handle_player_input(
             player_jump.get_single_mut().unwrap().0 = true;
             // set gravity to jump time
             player_gravity.get_single_mut().unwrap().0 = PLAYER_JUMP_TIME;
+        }
+        if keyboard_input.just_released(KeyCode::Space) {
+            player_gravity.get_single_mut().unwrap().0 = 0;
         }
     }
 }

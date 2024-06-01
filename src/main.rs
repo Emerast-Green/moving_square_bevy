@@ -1,4 +1,5 @@
 use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
+use data::LoaderPlugin;
 use game::{GamePlugin, ObstaclePlugin, PlayerPlugin};
 
 mod data;
@@ -21,7 +22,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_seconds(1.0 / 60.0))
         .add_systems(Startup, spawn_camera)
         // Plugins
-        .add_plugins(GamePlugin)
+        .add_plugins((GamePlugin,LoaderPlugin))
         .run();
 }
 
