@@ -1,9 +1,11 @@
 use super::{collide, Acceleration, CollisionSides, GravityCounter, JumpLock, ObstacleComponent, Size, Speed};
 use crate::{data::mymath::reduction, AppState, SimulationState};
 use bevy::{
-    prelude::*,
-    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    audio::Volume, prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}
 };
+use rand::prelude::*;
+
+
 
 // ==== Constants ====
 pub const PLAYER_DECELERATION_RATE: f32 = 0.8;
@@ -11,6 +13,7 @@ pub const PLAYER_ACCELERATION: f32 = 2.5;
 pub const PLAYER_JUMP_STRENGTH: f32 = 8.0;
 pub const PLAYER_JUMP_TIME: u32 = 25;
 pub const PLAYER_MASS: f32 = 1.5;
+pub const VOLUME_DETERMINATION_BASE: f32 = 20.0;
 
 // ==== PLUGIN ====
 
@@ -95,7 +98,9 @@ pub fn update_player_physics(
         //
         if let Ok(mut player_acceleration) = player_acc.get_single_mut() {
             // 5. apply acceleration to speed on x axis while limiting value withing borders
-            player_speed.0.x += player_acceleration.0.x;
+            if (player_acceleration.0.x<0.0 && !player_sides.0[2]) || (player_acceleration.0.x>0.0 && !player_sides.0[3]) {
+                player_speed.0.x += player_acceleration.0.x;
+            }
             // 6. apply acceleration to speed on y axis
             player_speed.0.y += player_acceleration.0.y;
             // 7. reset acceleration
@@ -154,7 +159,9 @@ pub fn handle_player_input(
 pub fn handle_player_obstacle_collision(
     mut player_query: Query<(&mut Transform, &mut Speed,& Size,&mut CollisionSides,
          &mut JumpLock, &mut GravityCounter), With<PlayerComponent>>,
-    obstacle_query: Query<(&Transform, &Size), (With<ObstacleComponent>, Without<PlayerComponent>)>
+    obstacle_query: Query<(&Transform, &Size), (With<ObstacleComponent>, Without<PlayerComponent>)>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>
 ) {
     if let Ok((mut pt,mut psd, ps,mut cs,
          mut pj,mut gc)) = player_query.get_single_mut() {
@@ -163,7 +170,7 @@ pub fn handle_player_obstacle_collision(
             player_obstacle_collision(
                 &mut pt,&mut psd, ps, 
                 &mut cs, 
-                &mut pj, &mut gc, ot, os 
+                &mut pj, &mut gc, ot, os, &mut commands, &asset_server
             )
         }
     }
@@ -180,6 +187,8 @@ pub fn player_obstacle_collision(
     gravity_counter: &mut GravityCounter,
     obstacle_transform: &Transform,
     obstacle_size: &Size,
+    mut commands: &mut Commands,
+    asset_server: &Res<AssetServer>
 ) {
     let mut mk = 32;
     let mut mv = f32::MAX;
@@ -192,7 +201,7 @@ pub fn player_obstacle_collision(
     d.2 = (player_transform.translation.x-player_size.0.x/2.0-(obstacle_transform.translation.x+obstacle_size.0.x/2.0)).abs();
     // distance between player's right and obstacle's left
     d.3 = (player_transform.translation.x+player_size.0.x/2.0-(obstacle_transform.translation.x-obstacle_size.0.x/2.0)).abs();
-    println!("{:?}",d);
+    //println!("{:?}",d);
     if d.0<mv {mk=0;mv=d.0};
     if d.1<mv {mk=1;mv=d.1};
     if d.2<mv {mk=2;mv=d.2};
@@ -200,32 +209,60 @@ pub fn player_obstacle_collision(
     match mk {
         0 => {
             // Collision with a floor
-            println!("floor");
+            //println!("floor");
             player_transform.translation.y = obstacle_transform.translation.y+player_size.0.y/2.0+obstacle_size.0.y/2.0;
-            if player_speed.0.y<0.0 {player_speed.0.y=0.0};
+            play_impact(&mut commands,&asset_server,Volume::new(-player_speed.0.y/VOLUME_DETERMINATION_BASE));
             jump_lock.0 = false;
+            if player_speed.0.y<0.0 {player_speed.0.y=0.0};
         },
         1 => {
             // Collision with the ceiling
-            println!("ceiling");
+            //println!("ceiling");
             player_transform.translation.y = obstacle_transform.translation.y-player_size.0.y/2.0-obstacle_size.0.y/2.0;
+            play_impact(&mut commands,&asset_server,Volume::new( player_speed.0.y/VOLUME_DETERMINATION_BASE));
             if player_speed.0.y>0.0 {player_speed.0.y=0.0};
             gravity_counter.0 = 0;
         },
         2 => {
             // Collision on the left (player on the right of obstacle)
-            println!("left");
+            //println!("left");
             player_transform.translation.x = obstacle_transform.translation.x+player_size.0.x/2.0+obstacle_size.0.x/2.0;
+            //play_impact(&mut commands,&asset_server,Volume::new(-player_speed.0.x/VOLUME_DETERMINATION_BASE));
             if player_speed.0.x<0.0 {player_speed.0.x=0.0};
         },
         3 => {
             // Collision on the right (player on the left of obstacle)
-            println!("right");
+            //println!("right");
             player_transform.translation.x = obstacle_transform.translation.x-player_size.0.x/2.0-obstacle_size.0.x/2.0;
+            //play_impact(&mut commands,&asset_server,Volume::new( player_speed.0.x/VOLUME_DETERMINATION_BASE));
             if player_speed.0.x>0.0 {player_speed.0.x=0.0};
         },
         _ => {println!("At player_obstacle_collision, somehow an impossible collision side key was matched...");}
     }
     collision_sides.0[mk]=true;
-    println!("{:?}",collision_sides.0);
+    //println!("{:?}",collision_sides.0);
+}
+
+pub fn play_impact(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    volume: Volume
+) {
+        // let sound = if random::<f32>() > 0.5 {
+        //     asset_server.load("audio/impactGeneric_light_000.ogg")
+        // } else {
+        //     asset_server.load("audio/impactGeneric_light_001.ogg")
+        // };
+        let sound: [Handle<AudioSource>;5] = [
+            asset_server.load("audio/impactGeneric_light_000.ogg"),
+            asset_server.load("audio/impactGeneric_light_001.ogg"),
+            asset_server.load("audio/impactGeneric_light_002.ogg"),
+            asset_server.load("audio/impactGeneric_light_003.ogg"),
+            asset_server.load("audio/impactGeneric_light_004.ogg")
+        ];
+        let sound = sound.choose(&mut rand::thread_rng()).unwrap().to_owned();
+        commands.spawn(AudioBundle {
+            source: sound,
+            settings: PlaybackSettings::DESPAWN.with_volume(volume),
+        });
 }
