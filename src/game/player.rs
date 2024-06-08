@@ -305,16 +305,16 @@ pub fn play_impact(
         // } else {
         //     asset_server.load("audio/impactGeneric_light_001.ogg")
         // };
-        let sound: [Handle<AudioSource>;5] = [
-            asset_server.load("audio/impactGeneric_light_000.ogg"),
-            asset_server.load("audio/impactGeneric_light_001.ogg"),
-            asset_server.load("audio/impactGeneric_light_002.ogg"),
-            asset_server.load("audio/impactGeneric_light_003.ogg"),
-            asset_server.load("audio/impactGeneric_light_004.ogg")
+        let sound: [&str;5] = [
+            "audio/impactGeneric_light_000.ogg",
+            "audio/impactGeneric_light_001.ogg",
+            "audio/impactGeneric_light_002.ogg",
+            "audio/impactGeneric_light_003.ogg",
+            "audio/impactGeneric_light_004.ogg"
         ];
         let sound = sound.choose(&mut rand::thread_rng()).unwrap().to_owned();
         commands.spawn(AudioBundle {
-            source: sound,
+            source: asset_server.load(sound),
             settings: PlaybackSettings::DESPAWN.with_volume(volume),
         });
 }
