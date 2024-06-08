@@ -2,3 +2,6 @@
 game.exe
 Cargo.lock
 assets/kenney_impact-sounds.zip
+perf.data
+perf.data.old
+profile.coz

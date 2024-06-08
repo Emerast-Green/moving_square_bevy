@@ -9,6 +9,9 @@ pub use player::*;
 mod obstacle;
 pub use obstacle::*;
 
+mod controller;
+pub use controller::*;
+
 // ==== PLUGIN ====
 
 pub struct GamePlugin;
@@ -48,13 +51,15 @@ pub struct JumpLock(pub bool);
 // ==== FUNCTIONS ====
 
 pub fn collide(p1: Vec2, s1: Vec2, p2: Vec2, s2: Vec2) -> bool {
+    // move center to top left to simplify overlap check
     let p1 = Vec2::new(p1.x-s1.x/2.0,p1.y-s1.y/2.0);
     let p2 = Vec2::new(p2.x-s2.x/2.0,p2.y-s2.y/2.0);
-    ((p2.x<=p1.x && p1.x<=p2.x+s2.x) || 
-    (p1.x<=p2.x && p2.x<=p1.x+s1.x)) 
+    // simple overlap check
+    ((p2.x-1.0<=p1.x && p1.x<=p2.x+s2.x+1.0) || 
+     (p1.x-1.0<=p2.x && p2.x<=p1.x+s1.x+1.0)) 
    && 
-   ((p2.y<=p1.y && p1.y<=p2.y+s2.y) || 
-    (p1.y<=p2.y && p2.y<=p1.y+s1.y)) 
+   ((p2.y-1.0<=p1.y && p1.y<=p2.y+s2.y+1.0) || 
+    (p1.y-1.0<=p2.y && p2.y<=p1.y+s1.y+1.0)) 
 }
 
 // ==== SYSTEMS =====

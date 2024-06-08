@@ -9,9 +9,10 @@ use rand::prelude::*;
 
 // ==== Constants ====
 pub const PLAYER_DECELERATION_RATE: f32 = 0.8;
-pub const PLAYER_ACCELERATION: f32 = 2.5;
+pub const PLAYER_FRICTION_RATE: f32 = 0.8;
+pub const PLAYER_ACCELERATION: f32 = 1.0;
 pub const PLAYER_JUMP_STRENGTH: f32 = 7.0;
-pub const PLAYER_JUMP_TIME: u32 = 35;
+pub const PLAYER_JUMP_TIME: u32 = 20;
 pub const PLAYER_MASS: f32 = 1.0;
 pub const VOLUME_DETERMINATION_BASE: f32 = 20.0;
 
@@ -22,14 +23,21 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app
+        // Event
+        .add_event::<PlayerInput>()
             // On Enter
             .add_systems(OnEnter(AppState::Game), spawn_player)
             // Update
-
+            .add_systems(
+                Update,
+                (handle_player_keyboard)
+                .run_if(in_state(AppState::Game))
+                .run_if(in_state(SimulationState::Running)),
+            )
             // FixedUpdate
             .add_systems(
                 FixedUpdate,
-                (handle_player_input,handle_player_obstacle_collision,update_player_physics).chain()
+                (handle_player_input,(update_player_physics,handle_player_obstacle_collision).chain())
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(SimulationState::Running)),
             )
@@ -42,6 +50,16 @@ impl Plugin for PlayerPlugin {
 
 #[derive(Component, Default)]
 pub struct PlayerComponent;
+
+#[derive(Event)]
+pub struct PlayerInput(PlayerAction);
+
+pub enum PlayerAction {
+    MoveLeft,
+    MoveRight,
+    JumpStart,
+    JumpEnd
+}
 
 /// Spawn player
 pub fn spawn_player(
@@ -78,22 +96,19 @@ pub fn despawn_player(mut commands: Commands, player_query: Query<Entity, With<P
 /// Perform all physics calculations
 pub fn update_player_physics(
     mut player_query: Query<(&mut Transform, Entity), With<PlayerComponent>>,
-    mut player_spd: Query<(&mut Speed,&mut CollisionSides), With<PlayerComponent>>,
+    mut player_spd: Query<(&mut Speed,&mut CollisionSides,&mut GravityCounter), With<PlayerComponent>>,
     mut player_acc: Query<&mut Acceleration, With<PlayerComponent>>,
-    mut player_grv: Query<&mut GravityCounter, With<PlayerComponent>>,
 ) {
-    if let Ok((mut player_speed, mut player_sides)) = player_spd.get_single_mut() {
+    if let Ok((mut player_speed, mut player_sides, mut player_gravity)) = player_spd.get_single_mut() {
         // 1. apply gravity unless on the ground (collision from below) or counteracted (gravity timer for jumping)
-        if !player_sides.0[0] {
+        if !(player_sides.0[0] || player_gravity.0>0){
             player_speed.0.y -= PLAYER_MASS;
         }
         // Step 2 is handled withing system handle_player_input
         // Step 3 is handled in fn handle_player_input
         // 4. decrease gravty counteraction time by 1 if >0
-        if let Ok(mut player_gravity) = player_grv.get_single_mut() {
-            if player_gravity.0 > 0 {
-                player_gravity.0 -= 1;
-            }
+        if player_gravity.0 > 0 {
+            player_gravity.0 -= 1;
         }
         //
         if let Ok(mut player_acceleration) = player_acc.get_single_mut() {
@@ -108,7 +123,10 @@ pub fn update_player_physics(
             player_acceleration.0.y = 0.0;
         }
         // 8. clamp speed & reduce speed on x axis
-        player_speed.0.x = reduction(player_speed.0.x, PLAYER_DECELERATION_RATE, 0.5);
+        match player_sides.0[0] { // further reduction if on the ground
+            true => {player_speed.0.x = reduction(player_speed.0.x, PLAYER_DECELERATION_RATE*PLAYER_FRICTION_RATE, 0.5);},
+            false => {player_speed.0.x = reduction(player_speed.0.x, PLAYER_DECELERATION_RATE, 0.5);}
+        };
         //player_speed.0.y = reduction(player_speed.0.y, PLAYER_DECELERATION_RATE, 0.5);
         
         // 9. restart gravity (set counteraction time to 0) if jump is cancelled 
@@ -126,36 +144,67 @@ pub fn update_player_physics(
     }
 }
 
+
 /// Apply player input to acceleration
-pub fn handle_player_input(
-    mut player_acc: Query<&mut Acceleration, With<PlayerComponent>>,
-    mut player_jump: Query<&mut JumpLock, With<PlayerComponent>>,
-    mut player_gravity: Query<&mut GravityCounter, With<PlayerComponent>>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+pub fn handle_player_keyboard(
+    mut event_writer: EventWriter<PlayerInput>,
+    keyboard_input: Res<ButtonInput<KeyCode>>
 ) {
     // 2. apply acceleration on x axis by controller
-    if let Ok(mut player_acceleration) = player_acc.get_single_mut() {
-        // Accelerate left
-        if keyboard_input.pressed(KeyCode::KeyA) {
-            player_acceleration.0.x -= PLAYER_ACCELERATION;
-        }
-        // Accelerate right
-        if keyboard_input.pressed(KeyCode::KeyD) {
-            player_acceleration.0.x += PLAYER_ACCELERATION;
-        }
-        // 3. apply jump-related acceleration on y axis & grant counteraction time
-        if keyboard_input.pressed(KeyCode::Space) && !player_jump.get_single().unwrap().0{
-            // apply jump acceleration
-            player_acceleration.0.y += PLAYER_JUMP_STRENGTH;
-            // lock jump (it gets unlocked at collision with ground, within fn player_obstacle_collision)
-            player_jump.get_single_mut().unwrap().0 = true;
-            // set gravity to jump time
-            player_gravity.get_single_mut().unwrap().0 = PLAYER_JUMP_TIME;
-        }
-        if keyboard_input.just_released(KeyCode::Space) {
-            player_gravity.get_single_mut().unwrap().0 = 0;
-        }
+    // Accelerate left
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        event_writer.send(PlayerInput(PlayerAction::MoveLeft));
     }
+    // Accelerate right
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        event_writer.send(PlayerInput(PlayerAction::MoveRight));
+    }
+    // 3. apply jump-related acceleration on y axis & grant counteraction time
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        event_writer.send(PlayerInput(PlayerAction::JumpStart));
+    }
+    if keyboard_input.just_released(KeyCode::Space) {
+        event_writer.send(PlayerInput(PlayerAction::JumpEnd));
+    }
+}
+
+// pub fn no_grav(
+//     mut player_gravity: Query<&mut GravityCounter, With<PlayerComponent>>,
+//     keyboard_input: Res<ButtonInput<KeyCode>>,
+// ) {
+
+// }
+
+pub fn handle_player_input (
+    mut event_reader: EventReader<PlayerInput>,
+    mut player_attrib: Query<(&mut Acceleration,&mut JumpLock,&mut GravityCounter), With<PlayerComponent>>,
+) {
+    if let Ok((mut player_acc,mut player_jumplock,mut player_grav)) = player_attrib.get_single_mut() {
+        for event in event_reader.read() {
+            match event.0 {
+                PlayerAction::MoveLeft => {
+                    player_acc.0.x -= PLAYER_ACCELERATION;
+                },
+                PlayerAction::MoveRight => {
+                    player_acc.0.x += PLAYER_ACCELERATION;
+                },
+                PlayerAction::JumpStart => {
+                if !player_jumplock.0 {
+                    // apply jump acceleration
+                    player_acc.0.y += PLAYER_JUMP_STRENGTH;
+                    // lock jump (it gets unlocked at collision with ground, within fn player_obstacle_collision)
+                    player_jumplock.0 = true;
+                    // set gravity to jump time
+                    player_grav.0 = PLAYER_JUMP_TIME;
+                };
+                },
+                PlayerAction::JumpEnd => {
+                    player_grav.0 = 0;
+                },
+            }
+        }   
+    }
+
 }
 
 /// 
@@ -214,7 +263,7 @@ pub fn player_obstacle_collision(
             // Collision with a floor
             //println!("floor");
             player_transform.translation.y = obstacle_transform.translation.y+player_size.0.y/2.0+obstacle_size.0.y/2.0;
-            play_impact(&mut commands,&asset_server,Volume::new(-player_speed.0.y/VOLUME_DETERMINATION_BASE));
+            play_impact(&mut commands,&asset_server,Volume::new(player_speed.0.y.abs()/VOLUME_DETERMINATION_BASE));
             jump_lock.0 = false;
             if player_speed.0.y<0.0 {player_speed.0.y=0.0};
         },
@@ -222,7 +271,7 @@ pub fn player_obstacle_collision(
             // Collision with the ceiling
             //println!("ceiling");
             player_transform.translation.y = obstacle_transform.translation.y-player_size.0.y/2.0-obstacle_size.0.y/2.0;
-            play_impact(&mut commands,&asset_server,Volume::new( player_speed.0.y/VOLUME_DETERMINATION_BASE));
+            play_impact(&mut commands,&asset_server,Volume::new( player_speed.0.y.abs()/VOLUME_DETERMINATION_BASE));
             if player_speed.0.y>0.0 {player_speed.0.y=0.0};
             gravity_counter.0 = 0;
         },
