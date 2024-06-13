@@ -2,7 +2,7 @@ use std::{fs, io::Read};
 
 use bevy::{ecs::bundle::DynamicBundle, prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}};
 
-use crate::game::{ObstacleComponent, PlayerComponent, Size, Speed};
+use crate::{game::{ObstacleComponent, PlayerComponent, Size, Speed}, AppState};
 
 pub const COIN_SIZE: f32 = 20.0;
 pub const DOOR_WIDTH: f32 = 20.0;
@@ -15,7 +15,7 @@ impl Plugin for LoaderPlugin {
     fn build(&self, app: &mut App) {
         app
         //
-        .add_systems(Update, test_loading)
+        .add_systems(Update, test_loading.run_if(in_state(AppState::Game)))
         //
         ;
     }
@@ -71,7 +71,7 @@ pub fn load_level_data(path: String) -> Vec<LevelObject> {
     match &mut file {
         Ok(f) => {
             match f.read_to_string(&mut buff) {
-                Ok(o) => {
+                Ok(_o) => {
                     println!("Loaded data from {}", &path);
                 }
                 Err(e) => {

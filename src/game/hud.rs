@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use crate::AppState;
+use crate::{menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE}, AppState};
 
 use super::{
-    get_title_text_style, JumpLock, PlayerComponent, COUNTER_ENEMIES_STYLE, COUNTER_STARS_STYLE, GAME_UI_STYLE, NORMAL_IMAGE_STYLE
+    JumpLock, PlayerComponent
 };
 
 pub struct HudPlugin;

@@ -1,6 +1,7 @@
-use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
+use bevy::{prelude::*, window::PrimaryWindow};
 use data::LoaderPlugin;
-use game::{GamePlugin, ObstaclePlugin, PlayerPlugin};
+use game::GamePlugin;
+use menu::MenuPLugin;
 
 mod data;
 mod game;
@@ -22,7 +23,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_seconds(1.0 / 60.0))
         .add_systems(Startup, spawn_camera)
         // Plugins
-        .add_plugins((GamePlugin,LoaderPlugin))
+        .add_plugins((GamePlugin,MenuPLugin))
         .run();
 }
 
@@ -37,9 +38,9 @@ pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
 
 #[derive(Default, States, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum AppState {
+    #[default]
     MainMenu,
     Levels,
-    #[default]
     Game,
 }
 

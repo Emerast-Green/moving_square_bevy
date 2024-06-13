@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*,
-    sprite::{Mesh2dHandle,MaterialMesh2dBundle}
-};
+use bevy::prelude::*;
 
 mod player;
 pub use player::*;
@@ -10,13 +7,10 @@ mod obstacle;
 pub use obstacle::*;
 
 mod controller;
-pub use controller::*;
 
 mod hud;
 pub use hud::*;
 
-mod styles;
-pub use styles::*;
 // ==== PLUGIN ====
 
 pub struct GamePlugin;
