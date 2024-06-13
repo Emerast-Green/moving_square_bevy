@@ -12,6 +12,11 @@ pub use obstacle::*;
 mod controller;
 pub use controller::*;
 
+mod hud;
+pub use hud::*;
+
+mod styles;
+pub use styles::*;
 // ==== PLUGIN ====
 
 pub struct GamePlugin;
@@ -20,7 +25,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
         //
-        .add_plugins((PlayerPlugin,ObstaclePlugin))
+        .add_plugins((PlayerPlugin,ObstaclePlugin,HudPlugin))
         //
         //.add_systems(Update, test_collision)
         //
