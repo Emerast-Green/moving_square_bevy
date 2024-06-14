@@ -1,5 +1,5 @@
 use bevy::{
-    log::Level, prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}
+    prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}
 };
 
 use crate::AppState;
@@ -76,9 +76,9 @@ pub fn spawn_test_level(
 
 pub fn despawn_test_level (
     mut commands: Commands,
-    main_menu_query: Query<Entity, With<LevelComponent>>,
+    objects_query: Query<Entity, With<LevelComponent>>,
 ) {
-    if let Ok(main_menu_entity) = main_menu_query.get_single() {
-        commands.entity(main_menu_entity).despawn_recursive();
+    for obj in objects_query.iter() {
+        commands.entity(obj).despawn_recursive()
     }
 }

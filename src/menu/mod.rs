@@ -1,7 +1,7 @@
 mod levels_menu;
 mod main_menu;
 pub(crate) mod styles;
-mod interactions;
+pub(crate) mod interactions;
 
 use bevy::prelude::*;
 use levels_menu::LevelsMenuPlugin;

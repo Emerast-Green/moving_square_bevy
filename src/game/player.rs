@@ -243,7 +243,7 @@ pub fn player_obstacle_collision(
     asset_server: &Res<AssetServer>
 ) {
     let mut mk = 32;
-    let mut mv = f32::MAX;
+    let mut _mv = f32::MAX;
     let mut d = (0.0,0.0,0.0,0.0);
     // distance between player's bottom and obstacle's top
     d.0 = (player_transform.translation.y-player_size.0.y/2.0-(obstacle_transform.translation.y+obstacle_size.0.y/2.0)).abs();
@@ -254,10 +254,10 @@ pub fn player_obstacle_collision(
     // distance between player's right and obstacle's left
     d.3 = (player_transform.translation.x+player_size.0.x/2.0-(obstacle_transform.translation.x-obstacle_size.0.x/2.0)).abs();
     //println!("{:?}",d);
-    if d.0<mv {mk=0;mv=d.0};
-    if d.1<mv {mk=1;mv=d.1};
-    if d.2<mv {mk=2;mv=d.2};
-    if d.3<mv {mk=3;mv=d.3};
+    if d.0<_mv {mk=0;_mv=d.0};
+    if d.1<_mv {mk=1;_mv=d.1};
+    if d.2<_mv {mk=2;_mv=d.2};
+    if d.3<_mv {mk=3;_mv=d.3};
     match mk {
         0 => {
             // Collision with a floor

@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use super::{interactions::interact_with_play_button, styles::*};
+use super::{
+    interactions::{interact_with_exit_button, interact_with_play_button},
+    styles::*,
+};
 use crate::AppState;
 
 pub struct MainMenuPlugin;
@@ -10,7 +13,7 @@ impl Plugin for MainMenuPlugin {
         app
             //
             .add_systems(OnEnter(AppState::MainMenu), spawn_main_menu)
-            .add_systems(Update, interact_with_play_button.run_if(in_state(AppState::MainMenu)))
+            .add_systems(Update, (interact_with_play_button,interact_with_exit_button).run_if(in_state(AppState::MainMenu)))
             .add_systems(OnExit(AppState::MainMenu), despawn_main_menu)
             // .
             ;
@@ -20,8 +23,16 @@ impl Plugin for MainMenuPlugin {
 #[derive(Component)]
 pub struct MainMenuComponent;
 
-#[derive(Component)]
-pub struct PlayButtonComponent;
+pub mod main_menu_buttons {
+    use bevy::prelude::Component;
+
+    #[derive(Component)]
+    pub struct PlayButtonComponent;
+    
+    #[derive(Component)]
+    pub struct ExitButtonComponent;
+}
+
 
 pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let _main_menu_entity = build_main_menu(&mut commands, &asset_server);
@@ -54,7 +65,7 @@ pub fn build_main_menu(commands: &mut Commands, asset_server: &Res<AssetServer>)
                         background_color: NORMAL_BUTTON_COLOR.into(),
                         ..default()
                     },
-                    PlayButtonComponent,
+                    main_menu_buttons::PlayButtonComponent,
                 ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
@@ -69,7 +80,30 @@ pub fn build_main_menu(commands: &mut Commands, asset_server: &Res<AssetServer>)
                         ..default()
                     });
                 });
-        // end
+            // Exit Button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: NORMAL_BUTTON_STYLE,
+                        background_color: NORMAL_BUTTON_COLOR.into(),
+                        ..default()
+                    },
+                    main_menu_buttons::ExitButtonComponent,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection::new(
+                                "Exit",
+                                get_normal_text_style(&asset_server),
+                            )],
+                            justify: JustifyText::Center,
+                            ..default()
+                        },
+                        ..default()
+                    });
+                });
+            // end
         })
         .id();
     game_ui_entity

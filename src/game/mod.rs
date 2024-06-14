@@ -6,10 +6,14 @@ pub use player::*;
 mod obstacle;
 pub use obstacle::*;
 
-mod controller;
 
 mod hud;
 pub use hud::*;
+
+mod pause_menu;
+pub use pause_menu::*;
+
+use crate::{AppState, SimulationState};
 
 // ==== PLUGIN ====
 
@@ -19,7 +23,8 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
         //
-        .add_plugins((PlayerPlugin,ObstaclePlugin,HudPlugin))
+        .add_systems(OnEnter(AppState::Game), start_running)
+        .add_plugins((PlayerPlugin,ObstaclePlugin,HudPlugin,PauseMenuPlugin))
         //
         //.add_systems(Update, test_collision)
         //
@@ -75,3 +80,9 @@ pub fn collide(p1: Vec2, s1: Vec2, p2: Vec2, s2: Vec2) -> bool {
 //         }
 //     }
 // }
+
+pub fn start_running(
+    mut simulation_state_next_state: ResMut<NextState<SimulationState>>,
+) {
+    simulation_state_next_state.set(SimulationState::Running)
+}

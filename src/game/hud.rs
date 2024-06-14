@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
-use crate::{menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE}, AppState};
-
-use super::{
-    JumpLock, PlayerComponent
+use crate::{
+    menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE},
+    AppState,
 };
+
+use super::{JumpLock, PlayerComponent};
 
 pub struct HudPlugin;
 
@@ -13,9 +14,9 @@ impl Plugin for HudPlugin {
         app
             //
             .add_systems(OnEnter(AppState::Game), spawn_player_hud)
-            .add_systems(OnEnter(AppState::Game), despawn_player_hud)
             .add_systems(Update, update_jumped_label.run_if(in_state(AppState::Game)))
-            //
+            .add_systems(OnExit(AppState::Game), despawn_player_hud)
+            //.
             ;
     }
 }
@@ -74,7 +75,7 @@ pub fn build_player_hud(commands: &mut Commands, asset_server: &Res<AssetServer>
     game_ui_entity
 }
 
-pub fn update_jumped_label (
+pub fn update_jumped_label(
     mut jumped_ui_query: Query<&mut Text, With<PlayerHudJumped>>,
     jumped_query: Query<&JumpLock, With<PlayerComponent>>,
 ) {

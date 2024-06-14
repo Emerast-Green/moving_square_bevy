@@ -1,6 +1,6 @@
 use std::{fs, io::Read};
 
-use bevy::{ecs::bundle::DynamicBundle, prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}};
+use bevy::{ prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}};
 
 use crate::{game::{ObstacleComponent, PlayerComponent, Size, Speed}, AppState};
 
