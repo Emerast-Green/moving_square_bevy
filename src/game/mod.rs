@@ -3,8 +3,8 @@ use bevy::prelude::*;
 mod player;
 pub use player::*;
 
-mod obstacle;
-pub use obstacle::*;
+mod objects;
+pub use objects::*;
 
 
 mod hud;
@@ -24,7 +24,7 @@ impl Plugin for GamePlugin {
         app
         //
         .add_systems(OnEnter(AppState::Game), start_running)
-        .add_plugins((PlayerPlugin,ObstaclePlugin,HudPlugin,PauseMenuPlugin))
+        .add_plugins((PlayerPlugin,obstacle::ObstaclePlugin,HudPlugin,PauseMenuPlugin))
         //
         //.add_systems(Update, test_collision)
         //

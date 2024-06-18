@@ -1,4 +1,4 @@
-use super::{collide, Acceleration, CollisionSides, GravityCounter, JumpLock, ObstacleComponent, Size, Speed};
+use super::{collide, Acceleration, CollisionSides, GravityCounter, JumpLock, objects::obstacle::ObstacleComponent, Size, Speed};
 use crate::{data::mymath::reduction, AppState, SimulationState};
 use bevy::{
     audio::Volume, prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}

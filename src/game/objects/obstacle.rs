@@ -4,7 +4,7 @@ use bevy::{
 
 use crate::AppState;
 
-use super::Size;
+use crate::game::Size;
 
 // ==== PLUGIN ====
 
