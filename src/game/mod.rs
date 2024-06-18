@@ -24,7 +24,7 @@ impl Plugin for GamePlugin {
         app
         //
         .add_systems(OnEnter(AppState::Game), start_running)
-        .add_plugins((PlayerPlugin,obstacle::ObstaclePlugin,HudPlugin,PauseMenuPlugin))
+        .add_plugins((PlayerPlugin,GameObjectsPlugin,HudPlugin,PauseMenuPlugin))
         //
         //.add_systems(Update, test_collision)
         //

@@ -12,7 +12,7 @@ use bevy::{
 };
 
 use crate::{
-    game::{obstacle::ObstacleComponent, PlayerComponent, Size, Speed},
+    game::{coin::CoinComponent, door::DoorComponent, obstacle::ObstacleComponent, PlayerComponent, Size, Speed},
     AppState,
 };
 
@@ -211,7 +211,7 @@ pub fn load_level(
                                 transform: Transform::from_xyz(pos.x, pos.y, 0.0),
                                 ..default()
                             },
-                            ObstacleComponent::default(),
+                            CoinComponent,
                             Size {
                                 0: Vec2::new(COIN_SIZE / 2.0, COIN_SIZE / 2.0),
                             },
@@ -227,7 +227,7 @@ pub fn load_level(
                                 transform: Transform::from_xyz(pos.x, pos.y, 0.0),
                                 ..default()
                             },
-                            ObstacleComponent::default(),
+                            DoorComponent,
                             Size {
                                 0: Vec2::new(DOOR_WIDTH, DOOR_HEIGHT),
                             },
