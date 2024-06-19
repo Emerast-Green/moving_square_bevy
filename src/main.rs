@@ -1,4 +1,4 @@
-use bevy::{ prelude::*, window::PrimaryWindow};
+use bevy::{ prelude::*, window::{PrimaryWindow, WindowResolution}};
 use data::LoaderPlugin;
 use game::GamePlugin;
 use menu::MenuPLugin;
@@ -12,6 +12,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Moving Square [Bevy] beta".to_string(),
+                resolution: WindowResolution::new(1028.0, 680.0),
                 ..Default::default()
             }),
             ..Default::default()
@@ -23,7 +24,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_seconds(1.0 / 60.0))
         .add_systems(Startup, spawn_camera)
         // Plugins
-        .add_plugins((GamePlugin,MenuPLugin,LoaderPlugin))
+        .add_plugins((GamePlugin,MenuPLugin))
         .run();
 }
 
@@ -34,6 +35,7 @@ pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
         transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
         ..default()
     });
+    println!("[INFO] Window size {}x{} , spawning camera in center",window.width(),window.height());
 }
 
 #[derive(Default, States, Debug, Hash, PartialEq, Eq, Clone)]

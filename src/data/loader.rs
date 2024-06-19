@@ -12,7 +12,7 @@ use bevy::{
 };
 
 use crate::{
-    game::{coin::CoinComponent, door::DoorComponent, obstacle::ObstacleComponent, PlayerComponent, Size, Speed},
+    game::{coin::CoinComponent, door::DoorComponent, obstacle::ObstacleComponent, spawn_player, PlayerComponent, Size, Speed},
     AppState,
 };
 
@@ -27,7 +27,10 @@ impl Plugin for LoaderPlugin {
     fn build(&self, app: &mut App) {
         app
             //
-            .add_systems(Update, test_loading.run_if(in_state(AppState::Game)));
+            .add_systems(OnEnter(AppState::Game), test_loading.after(spawn_player))
+            .add_systems( OnExit(AppState::Game), despawn_level)
+            //.
+            ;
     }
 }
 
@@ -41,22 +44,22 @@ pub fn test_loading(
     level_query: Query<Entity, With<Level>>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    if keyboard.just_pressed(KeyCode::KeyR) {
-        if let Ok(level_entity) = level_query.get_single() {
-            commands.entity(level_entity).despawn_recursive();
-        }
-        if let Ok((mut transform, mut speed)) = player_query.get_single_mut() {
-            load_level(
-                "./assets/levels/og4/1".to_string(),
-                commands,
-                &mut meshes,
-                &mut materials,
-                &mut transform,
-                &mut speed,
-            );
-        } else {
-            println!("  Couldn't load a level: No player entity");
-        }
+    if let Ok(level_entity) = level_query.get_single() {
+        println!("[LOADER] Despawning prior level");
+        commands.entity(level_entity).despawn_recursive();
+    }
+    if let Ok((mut transform, mut speed)) = player_query.get_single_mut() {
+        println!("[LOADER] Starting loading of test level ./assets/levels/og4/0");
+        load_level(
+            "./assets/levels/og4/0".to_string(),
+            commands,
+            &mut meshes,
+            &mut materials,
+            &mut transform,
+            &mut speed,
+        );
+    } else {
+        println!("[LOADER] Couldn't load a level: No player entity");
     }
 }
 
@@ -80,7 +83,7 @@ impl Default for LevelObject {
 }
 
 /// function responsible for loading given file into a deployable data structure.
-pub fn load_level_data(path: String) -> Vec<LevelObject> {
+pub fn load_level_data(path: String,parser: &dyn Fn(&str,usize)->Option<LevelObject>) -> Vec<LevelObject> {
     let mut buff: String = String::new();
     let mut file = fs::File::open(&path);
     match &mut file {
@@ -103,7 +106,7 @@ pub fn load_level_data(path: String) -> Vec<LevelObject> {
         println!("Loading data into vector");
         for (n, l) in buff.lines().enumerate() {
             println!("{}", l);
-            match parse_line(l, n) {
+            match parser(l, n) {
                 None => {}
                 Some(o) => ret.push(o),
             };
@@ -115,55 +118,6 @@ pub fn load_level_data(path: String) -> Vec<LevelObject> {
     ret
 }
 
-pub fn parse_line(text: &str, number: usize) -> Option<LevelObject> {
-    let segs: Vec<&str> = text.split_ascii_whitespace().collect();
-    if segs.len() == 0 {
-        return None;
-    }
-    match segs[0] {
-        "BARRIER" | "OBSTACLE" => {
-            let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
-            let size: Vec2 = Vec2::new(segs[3].parse().unwrap(), segs[4].parse().unwrap());
-            Some(LevelObject::Obstacle((fix_aligment(pos, size), size)))
-        }
-        "COIN" => {
-            let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
-            Some(LevelObject::Coin(fix_aligment(
-                pos,
-                Vec2::new(COIN_SIZE * 2.0, COIN_SIZE * 2.0),
-            )))
-        }
-        "DOOR" => {
-            let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
-            Some(LevelObject::Door(fix_aligment(
-                pos,
-                Vec2::new(DOOR_WIDTH, DOOR_HEIGHT),
-            )))
-        }
-        "PLAYER_POS" => {
-            let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
-            Some(LevelObject::PlayerPos(fix_aligment(
-                pos,
-                Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
-            )))
-        }
-        "PLAYER_SIZE" => {
-            println!("  > Identifier 'PLAYER_SIZE' is redundant for new version");
-            None
-        }
-        "COIN_SIZE" => {
-            println!("  > Identifier 'COIN_SIZE' is redundant for new version");
-            None
-        }
-        _ => {
-            println!(
-                "  > Error at line number {}: Wrong object identifier",
-                number
-            );
-            None
-        }
-    }
-}
 
 #[derive(Component)]
 pub struct Level;
@@ -188,7 +142,7 @@ pub fn load_level(
             Level,
         ))
         .with_children(|parent| {
-            let data = load_level_data(path);
+            let data = load_level_data(path,&legacy_loading::parse_line);
             for o in data {
                 match o {
                     LevelObject::Obstacle((pos, size)) => {
@@ -244,11 +198,6 @@ pub fn load_level(
         });
 }
 
-/// fixes alignment issues caused by centering of pos vec by bevy
-pub fn fix_aligment(pos: Vec2, size: Vec2) -> Vec2 {
-    Vec2::new(pos.x - size.x / 2.0, pos.y - size.y / 2.0)
-}
-
 pub struct LevelData {
     name: String,
     author: u64,
@@ -302,4 +251,78 @@ pub fn get_levels_data() -> Vec<LevelData> {
         };
     });
     n
+}
+
+mod legacy_loading {
+    use super::{ LevelObject, COIN_SIZE, DOOR_HEIGHT, DOOR_WIDTH, PLAYER_SIZE};
+    use bevy::prelude::*;
+
+    pub fn parse_line(text: &str, number: usize) -> Option<LevelObject> {
+        let segs: Vec<&str> = text.split_ascii_whitespace().collect();
+        if segs.len() == 0 {
+            return None;
+        }
+        match segs[0] {
+            "BARRIER" | "OBSTACLE" => {
+                let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
+                let size: Vec2 = Vec2::new(segs[3].parse().unwrap(), segs[4].parse().unwrap());
+                Some(LevelObject::Obstacle((fix_aligment(pos, size), size)))
+            }
+            "COIN" => {
+                let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
+                Some(LevelObject::Coin(fix_aligment(
+                    pos,
+                    Vec2::new(COIN_SIZE * 2.0, COIN_SIZE * 2.0),
+                )))
+            }
+            "DOOR" => {
+                let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
+                Some(LevelObject::Door(fix_aligment(
+                    pos,
+                    Vec2::new(DOOR_WIDTH, DOOR_HEIGHT),
+                )))
+            }
+            "PLAYER_POS" => {
+                let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
+                Some(LevelObject::PlayerPos(fix_aligment(
+                    pos,
+                    Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
+                )))
+            }
+            "PLAYER_SIZE" => {
+                println!("  > Identifier 'PLAYER_SIZE' is redundant for new version");
+                None
+            }
+            "COIN_SIZE" => {
+                println!("  > Identifier 'COIN_SIZE' is redundant for new version");
+                None
+            }
+            _ => {
+                println!(
+                    "  > Error at line number {}: Wrong object identifier",
+                    number
+                );
+                None
+            }
+        }
+    }
+
+    /// fixes alignment issues caused by centering of pos vec by bevy<br>
+    /// also transforms coords to fit new window size and coord system (flipped OY)
+    pub fn fix_aligment(pos: Vec2, size: Vec2) -> Vec2 {
+    Vec2::new(
+        2.0*pos.x -size.x/2.0, 
+        -2.0*pos.y +960.0 -size.y/2.0    
+    )
+}
+    
+}
+
+pub fn despawn_level (
+    mut commands: Commands,
+    objects_query: Query<Entity, With<Level>>,
+) {
+    for obj in objects_query.iter() {
+        commands.entity(obj).despawn_recursive()
+    }
 }

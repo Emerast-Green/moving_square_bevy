@@ -13,7 +13,7 @@ pub use hud::*;
 mod pause_menu;
 pub use pause_menu::*;
 
-use crate::{AppState, SimulationState};
+use crate::{data::LoaderPlugin, AppState, SimulationState};
 
 // ==== PLUGIN ====
 
@@ -24,7 +24,7 @@ impl Plugin for GamePlugin {
         app
         //
         .add_systems(OnEnter(AppState::Game), start_running)
-        .add_plugins((PlayerPlugin,GameObjectsPlugin,HudPlugin,PauseMenuPlugin))
+        .add_plugins((PlayerPlugin,GameObjectsPlugin,HudPlugin,PauseMenuPlugin,LoaderPlugin))
         //
         //.add_systems(Update, test_collision)
         //
