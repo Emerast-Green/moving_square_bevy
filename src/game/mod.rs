@@ -54,6 +54,7 @@ pub struct JumpLock(pub bool);
 
 // ==== FUNCTIONS ====
 
+/// collision between rectangles.<br>uses bevy coords for pos
 pub fn collide(p1: Vec2, s1: Vec2, p2: Vec2, s2: Vec2) -> bool {
     // move center to top left to simplify overlap check
     let p1 = Vec2::new(p1.x-s1.x/2.0,p1.y-s1.y/2.0);

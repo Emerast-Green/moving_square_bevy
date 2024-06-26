@@ -43,14 +43,17 @@ fn remove_coin_resource(
 }
 
 fn coin_player_collide(
+    mut commands: Commands,
     mut player_query: Query<(&mut Transform, & Size), With<PlayerComponent>>,
-    coin_query: Query<(&Transform, &Size), (With<CoinComponent>, Without<PlayerComponent>)>,
+    coin_query: Query<(Entity, &Transform, &Size), (With<CoinComponent>, Without<PlayerComponent>)>,
     mut score_resource: ResMut<Score>,
 ) {
     if let Ok((pt, ps)) = player_query.get_single_mut() {
-    for (ot,os) in coin_query.iter() {
+    for (oe,ot,os) in coin_query.iter() {
         if collide(pt.translation.xy(), ps.0, ot.translation.xy(), os.0) {
+            //TODO play_coin_sound();
             score_resource.current+=1;
+            commands.get_entity(oe).unwrap().despawn();
         }
     }
 }

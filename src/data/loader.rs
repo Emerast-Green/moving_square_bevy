@@ -1,9 +1,8 @@
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     fs::{self, read_dir, DirEntry, File},
     io::Read,
-    os::unix::fs::DirEntryExt,
-    path::Path,
+
 };
 
 use bevy::{
@@ -12,7 +11,10 @@ use bevy::{
 };
 
 use crate::{
-    game::{coin::CoinComponent, door::DoorComponent, obstacle::ObstacleComponent, spawn_player, PlayerComponent, Size, Speed},
+    game::{
+        coin::CoinComponent, door::DoorComponent, obstacle::ObstacleComponent, spawn_player,
+        PlayerComponent, Size, Speed,
+    },
     AppState,
 };
 
@@ -42,7 +44,7 @@ pub fn test_loading(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut player_query: Query<(&mut Transform, &mut Speed), With<PlayerComponent>>,
     level_query: Query<Entity, With<Level>>,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    //keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     if let Ok(level_entity) = level_query.get_single() {
         println!("[LOADER] Despawning prior level");
@@ -83,7 +85,10 @@ impl Default for LevelObject {
 }
 
 /// function responsible for loading given file into a deployable data structure.
-pub fn load_level_data(path: String,parser: &dyn Fn(&str,usize)->Option<LevelObject>) -> Vec<LevelObject> {
+pub fn load_level_data(
+    path: String,
+    parser: &dyn Fn(&str, usize) -> Option<LevelObject>,
+) -> Vec<LevelObject> {
     let mut buff: String = String::new();
     let mut file = fs::File::open(&path);
     match &mut file {
@@ -118,7 +123,6 @@ pub fn load_level_data(path: String,parser: &dyn Fn(&str,usize)->Option<LevelObj
     ret
 }
 
-
 #[derive(Component)]
 pub struct Level;
 
@@ -142,7 +146,7 @@ pub fn load_level(
             Level,
         ))
         .with_children(|parent| {
-            let data = load_level_data(path,&legacy_loading::parse_line);
+            let data = load_level_data(path, &legacy_loading::parse_line);
             for o in data {
                 match o {
                     LevelObject::Obstacle((pos, size)) => {
@@ -158,7 +162,7 @@ pub fn load_level(
                         ));
                     }
                     LevelObject::Coin(pos) => {
-                        (
+                        parent.spawn((
                             MaterialMesh2dBundle {
                                 mesh: Mesh2dHandle(meshes.add(Circle::new(COIN_SIZE))),
                                 material: materials.add(Color::YELLOW),
@@ -167,12 +171,12 @@ pub fn load_level(
                             },
                             CoinComponent,
                             Size {
-                                0: Vec2::new(COIN_SIZE / 2.0, COIN_SIZE / 2.0),
+                                0: Vec2::new(COIN_SIZE * 2.0, COIN_SIZE * 2.0),
                             },
-                        );
+                        ));
                     }
                     LevelObject::Door(pos) => {
-                        (
+                        parent.spawn((
                             MaterialMesh2dBundle {
                                 mesh: Mesh2dHandle(
                                     meshes.add(Rectangle::new(DOOR_WIDTH, DOOR_HEIGHT)),
@@ -185,7 +189,7 @@ pub fn load_level(
                             Size {
                                 0: Vec2::new(DOOR_WIDTH, DOOR_HEIGHT),
                             },
-                        );
+                        ));
                     }
                     LevelObject::PlayerPos(pos) => {
                         player_transform.translation.x = pos.x;
@@ -213,12 +217,12 @@ impl LevelData {
             Some(o) => {
                 let mut oo = o.split_whitespace().into_iter();
                 oo.next().unwrap();
-                    return Some(LevelData {
-                        amount: 0,
-                        author: 0,
-                        name: oo.next().expect("F").to_string(),
-                    });
-                },
+                return Some(LevelData {
+                    amount: 0,
+                    author: 0,
+                    name: oo.next().expect("F").to_string(),
+                });
+            }
             None => {
                 return None;
             }
@@ -242,11 +246,9 @@ pub fn get_levels_data() -> Vec<LevelData> {
     let mut n = Vec::new();
     read_dir(PATH_LEVELS).expect("FU1").for_each(|x| {
         match LevelData::read_dir(&x.as_ref().unwrap()) {
-            Some(o) => {
-                n.push(o)
-            },
+            Some(o) => n.push(o),
             None => {
-                println!("Failed to load {}",&x.unwrap().path().display())
+                println!("Failed to load {}", &x.unwrap().path().display())
             }
         };
     });
@@ -254,7 +256,7 @@ pub fn get_levels_data() -> Vec<LevelData> {
 }
 
 mod legacy_loading {
-    use super::{ LevelObject, COIN_SIZE, DOOR_HEIGHT, DOOR_WIDTH, PLAYER_SIZE};
+    use super::{LevelObject, COIN_SIZE, DOOR_HEIGHT, DOOR_WIDTH, PLAYER_SIZE};
     use bevy::prelude::*;
 
     pub fn parse_line(text: &str, number: usize) -> Option<LevelObject> {
@@ -266,7 +268,8 @@ mod legacy_loading {
             "BARRIER" | "OBSTACLE" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
                 let size: Vec2 = Vec2::new(segs[3].parse().unwrap(), segs[4].parse().unwrap());
-                Some(LevelObject::Obstacle((fix_aligment(pos, size), size)))
+                //println!("Obstacle -> pos:{}, size:{}",fix_aligment(pos, size),size);
+                Some(LevelObject::Obstacle((fix_aligment(pos, size), 2.0 * size)))
             }
             "COIN" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
@@ -310,18 +313,14 @@ mod legacy_loading {
     /// fixes alignment issues caused by centering of pos vec by bevy<br>
     /// also transforms coords to fit new window size and coord system (flipped OY)
     pub fn fix_aligment(pos: Vec2, size: Vec2) -> Vec2 {
-    Vec2::new(
-        2.0*pos.x -size.x/2.0, 
-        -2.0*pos.y +960.0 -size.y/2.0    
-    )
-}
-    
+        Vec2::new(
+            2.0 * (pos.x + size.x / 2.0),
+            -2.0 * (pos.y - size.y / 2.0) + 960.0,
+        )
+    }
 }
 
-pub fn despawn_level (
-    mut commands: Commands,
-    objects_query: Query<Entity, With<Level>>,
-) {
+pub fn despawn_level(mut commands: Commands, objects_query: Query<Entity, With<Level>>) {
     for obj in objects_query.iter() {
         commands.entity(obj).despawn_recursive()
     }

@@ -1,5 +1,4 @@
 use bevy::{ prelude::*, window::{PrimaryWindow, WindowResolution}};
-use data::LoaderPlugin;
 use game::GamePlugin;
 use menu::MenuPLugin;
 

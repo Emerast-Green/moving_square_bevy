@@ -71,7 +71,7 @@ pub fn spawn_player(
         MaterialMesh2dBundle {
             mesh: Mesh2dHandle(meshes.add(Rectangle::new(50.0, 50.0))),
             material: materials.add(Color::rgb(1.0, 1.0, 1.0)),
-            transform: Transform::from_xyz(600.0, 300.0, 0.0),
+            transform: Transform::from_xyz(600.0, 300.0, 1.0),
             ..default()
         },
         PlayerComponent::default(),
