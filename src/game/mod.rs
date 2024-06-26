@@ -13,7 +13,8 @@ pub use hud::*;
 mod pause_menu;
 pub use pause_menu::*;
 
-use crate::{data::LoaderPlugin, AppState, SimulationState};
+pub use crate::data::*;
+use crate::{AppState, SimulationState};
 
 // ==== PLUGIN ====
 

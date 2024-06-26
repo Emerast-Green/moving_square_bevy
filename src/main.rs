@@ -6,12 +6,14 @@ mod data;
 mod game;
 mod menu;
 
+pub const WINDOW_SCALE: f32 = 2.0;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Moving Square [Bevy] beta".to_string(),
-                resolution: WindowResolution::new(1028.0, 680.0),
+                resolution: WindowResolution::new(WINDOW_SCALE*640.0, WINDOW_SCALE*480.0),
                 ..Default::default()
             }),
             ..Default::default()

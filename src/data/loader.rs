@@ -12,58 +12,99 @@ use bevy::{
 
 use crate::{
     game::{
-        coin::CoinComponent, door::DoorComponent, obstacle::ObstacleComponent, spawn_player,
+        coin::{CoinComponent, Score}, door::DoorComponent, obstacle::ObstacleComponent, spawn_player,
         PlayerComponent, Size, Speed,
     },
     AppState,
 };
 
+#[allow(unused)]
 pub const COIN_SIZE: f32 = 20.0;
-pub const DOOR_WIDTH: f32 = 20.0;
-pub const DOOR_HEIGHT: f32 = 60.0;
+
+#[allow(unused)]
 pub const PLAYER_SIZE: f32 = 50.0;
+
+#[allow(unused)]
+pub const LEGACY_SCALE: f32 = 2.0;
 
 pub struct LoaderPlugin;
 
 impl Plugin for LoaderPlugin {
     fn build(&self, app: &mut App) {
         app
-            //
+            // events
+            .add_event::<LoadLevelEvent>()
+            // systems
             .add_systems(OnEnter(AppState::Game), test_loading.after(spawn_player))
+            .add_systems(Update, handle_loadlevelevent.run_if(in_state(AppState::Game)))
             .add_systems( OnExit(AppState::Game), despawn_level)
             //.
             ;
     }
 }
 
-// ==== SYSTEMS ====
+// ==== EVENT & EVENT HANDLING HANDLING ====
 
-pub fn test_loading(
+
+#[derive(Event)]
+pub struct LoadLevelEvent {
+    path: String,
+}
+
+pub fn handle_loadlevelevent (
+    mut event_read: EventReader<LoadLevelEvent>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut player_query: Query<(&mut Transform, &mut Speed), With<PlayerComponent>>,
     level_query: Query<Entity, With<Level>>,
-    //keyboard: Res<ButtonInput<KeyCode>>,
+    mut score_resource: ResMut<Score>
 ) {
-    if let Ok(level_entity) = level_query.get_single() {
-        println!("[LOADER] Despawning prior level");
-        commands.entity(level_entity).despawn_recursive();
-    }
-    if let Ok((mut transform, mut speed)) = player_query.get_single_mut() {
-        println!("[LOADER] Starting loading of test level ./assets/levels/og4/0");
-        load_level(
-            "./assets/levels/og4/0".to_string(),
-            commands,
-            &mut meshes,
-            &mut materials,
-            &mut transform,
-            &mut speed,
-        );
-    } else {
-        println!("[LOADER] Couldn't load a level: No player entity");
+    if let Some(e) = event_read.read().last() {
+        if let Ok(level_entity) = level_query.get_single() {
+            println!("[LOADER] Despawning prior level");
+            commands.entity(level_entity).despawn_recursive();
+        }
+        if let Ok((mut transform, mut speed)) = player_query.get_single_mut() {
+            println!("[LOADER] Starting loading of test level ./assets/levels/og4/0");
+            let coin_count = spawn_level(
+                e.path.clone(),
+                commands,
+                &mut meshes,
+                &mut materials,
+                &mut transform,
+                &mut speed,
+            );
+            score_resource.needed = coin_count;
+            println!("Level score requirement (score.needed) set to {}",score_resource.needed);
+        } else {
+            println!("[LOADER] Couldn't load a level: No player entity");
+        };
     }
 }
+
+// ==== SYSTEMS ====
+
+pub fn test_loading(
+    mut event_writer: EventWriter<LoadLevelEvent>,
+) {
+    event_writer.send(LoadLevelEvent {
+        path: "./assets/levels/og4/0".to_string()
+    });
+}
+
+// pub fn load_level(
+//     path: String,
+//     mut commands: &mut Commands,
+//     mut meshes: &mut ResMut<Assets<Mesh>>,
+//     mut materials: &mut ResMut<Assets<ColorMaterial>>,
+//     mut player_query: &mut Query<(&mut Transform, &mut Speed), With<PlayerComponent>>,
+//     level_query: & Query<Entity, With<Level>>,
+//     mut score_resource: &mut ResMut<Score>
+//     //keyboard: Res<ButtonInput<KeyCode>>,
+// ) {
+
+// }
 
 // ==== FUNCTIONS ====
 /// struct responsible for holding temporary data
@@ -72,8 +113,8 @@ pub enum LevelObject {
     Obstacle((Vec2, Vec2)),
     /// pos
     Coin(Vec2),
-    /// pos
-    Door(Vec2),
+    /// pos and size
+    Door(Vec2,Vec2),
     /// pos
     PlayerPos(Vec2),
 }
@@ -127,14 +168,15 @@ pub fn load_level_data(
 pub struct Level;
 
 /// spawn level object with objects from a given file
-pub fn load_level(
+pub fn spawn_level(
     path: String,
     mut commands: Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
     player_transform: &mut Transform,
     player_speed: &mut Speed,
-) {
+) -> usize {
+    let mut coin_count = 0;
     commands
         .spawn((
             MaterialMesh2dBundle {
@@ -143,7 +185,7 @@ pub fn load_level(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            Level,
+            Level
         ))
         .with_children(|parent| {
             let data = load_level_data(path, &legacy_loading::parse_line);
@@ -153,7 +195,7 @@ pub fn load_level(
                         parent.spawn((
                             MaterialMesh2dBundle {
                                 mesh: Mesh2dHandle(meshes.add(Rectangle::new(size.x, size.y))),
-                                material: materials.add(Color::rgb(1.0, 1.0, 1.0)),
+                                material: materials.add(Color::WHITE),
                                 transform: Transform::from_xyz(pos.x, pos.y, 0.0),
                                 ..default()
                             },
@@ -174,12 +216,13 @@ pub fn load_level(
                                 0: Vec2::new(COIN_SIZE * 2.0, COIN_SIZE * 2.0),
                             },
                         ));
+                        coin_count+=1;
                     }
-                    LevelObject::Door(pos) => {
+                    LevelObject::Door(pos, size) => {
                         parent.spawn((
                             MaterialMesh2dBundle {
                                 mesh: Mesh2dHandle(
-                                    meshes.add(Rectangle::new(DOOR_WIDTH, DOOR_HEIGHT)),
+                                    meshes.add(Rectangle::new(size.x, size.y)),
                                 ),
                                 material: materials.add(Color::ORANGE),
                                 transform: Transform::from_xyz(pos.x, pos.y, 0.0),
@@ -187,7 +230,7 @@ pub fn load_level(
                             },
                             DoorComponent,
                             Size {
-                                0: Vec2::new(DOOR_WIDTH, DOOR_HEIGHT),
+                                0: size,
                             },
                         ));
                     }
@@ -200,6 +243,7 @@ pub fn load_level(
                 }
             }
         });
+        coin_count
 }
 
 pub struct LevelData {
@@ -256,7 +300,7 @@ pub fn get_levels_data() -> Vec<LevelData> {
 }
 
 mod legacy_loading {
-    use super::{LevelObject, COIN_SIZE, DOOR_HEIGHT, DOOR_WIDTH, PLAYER_SIZE};
+    use super::{LevelObject, COIN_SIZE, LEGACY_SCALE, PLAYER_SIZE};
     use bevy::prelude::*;
 
     pub fn parse_line(text: &str, number: usize) -> Option<LevelObject> {
@@ -275,15 +319,18 @@ mod legacy_loading {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
                 Some(LevelObject::Coin(fix_aligment(
                     pos,
-                    Vec2::new(COIN_SIZE * 2.0, COIN_SIZE * 2.0),
+                    Vec2::new(20.0,20.0),
                 )))
             }
             "DOOR" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
+                let size: Vec2 = Vec2::new(segs[3].parse().unwrap(), segs[4].parse().unwrap());
                 Some(LevelObject::Door(fix_aligment(
                     pos,
-                    Vec2::new(DOOR_WIDTH, DOOR_HEIGHT),
-                )))
+                    size
+                ),
+                    size*2.0
+                ))
             }
             "PLAYER_POS" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
@@ -314,8 +361,8 @@ mod legacy_loading {
     /// also transforms coords to fit new window size and coord system (flipped OY)
     pub fn fix_aligment(pos: Vec2, size: Vec2) -> Vec2 {
         Vec2::new(
-            2.0 * (pos.x + size.x / 2.0),
-            -2.0 * (pos.y - size.y / 2.0) + 960.0,
+            LEGACY_SCALE * (pos.x + size.x / 2.0),
+            -LEGACY_SCALE * (pos.y + size.y / 2.0) + 960.0,
         )
     }
 }
