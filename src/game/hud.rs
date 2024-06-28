@@ -116,7 +116,7 @@ pub fn update_score_label(
 ) {
     if !score_resource.is_changed(){return;};
     if let Ok(mut jumped_text) = score_ui_query.get_single_mut() {
-        jumped_text.sections[0].value = score_resource.current.to_string();
+        jumped_text.sections[0].value = format!("{}/{}",score_resource.current,score_resource.needed);
     }
 }
 

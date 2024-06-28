@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{game::{collide, PlayerComponent, Size}, AppState, SimulationState};
+use crate::{game::{collide, LoadLevelEvent, PlayerComponent, RunData, Size}, AppState, SimulationState};
 
 use super::coin::Score;
 
@@ -26,7 +26,9 @@ impl Plugin for DoorPlugin {
 fn door_player_collide(
     mut player_query: Query<(&mut Transform, &Size), With<PlayerComponent>>,
     coin_query: Query<(&Transform, &Size), (With<DoorComponent>, Without<PlayerComponent>)>,
-    score_resource: Res<Score>,
+    mut score_resource: ResMut<Score>,
+    run_resource: Res<RunData>,
+    mut event_writer: EventWriter<LoadLevelEvent>,
 ) {
     if let Ok((pt, ps)) = player_query.get_single_mut() {
         for (ot, os) in coin_query.iter() {
@@ -34,7 +36,20 @@ fn door_player_collide(
                 && score_resource.current >= score_resource.needed // greater or equal allows for levels with variable paths
             {
                 println!("Level Won");
-                // TODO: Implement proper level switching once loading is done
+                score_resource.current = 0;
+                match &run_resource.next {
+                    crate::game::loader::NextLevel::Next(number) => {
+                        event_writer.send(LoadLevelEvent {
+                            path: format!("{}/{}",run_resource.path,number)
+                        });
+                    }
+                    crate::game::loader::NextLevel::Finish => {
+                        // TODO: Implement win window properly
+                        event_writer.send(LoadLevelEvent {
+                            path: format!("{}/0",run_resource.path)
+                        });
+                    }
+                }
             }
         }
     }

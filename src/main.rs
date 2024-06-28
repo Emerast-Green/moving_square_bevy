@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use bevy::{ prelude::*, window::{PrimaryWindow, WindowResolution}};
 use game::GamePlugin;
 use menu::MenuPLugin;

@@ -2,18 +2,21 @@ use std::{
     fmt::Debug,
     fs::{self, read_dir, DirEntry, File},
     io::Read,
-
+    path::Path,
 };
 
 use bevy::{
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    utils::thiserror::Error,
 };
 
 use crate::{
     game::{
-        coin::{CoinComponent, Score}, door::DoorComponent, obstacle::ObstacleComponent, spawn_player,
-        PlayerComponent, Size, Speed,
+        coin::{CoinComponent, Score},
+        door::DoorComponent,
+        obstacle::ObstacleComponent,
+        spawn_player, PlayerComponent, Size, Speed,
     },
     AppState,
 };
@@ -27,38 +30,125 @@ pub const PLAYER_SIZE: f32 = 50.0;
 #[allow(unused)]
 pub const LEGACY_SCALE: f32 = 2.0;
 
+#[derive(Default)]
+pub enum NextLevel {
+    Next(usize),
+    #[default]
+    Finish,
+}
+
+#[derive(Resource, Default)]
+pub struct RunData {
+    pub author: String,
+    pub len: usize,
+    pub next: NextLevel,
+    pub path: String,
+}
+
 pub struct LoaderPlugin;
 
 impl Plugin for LoaderPlugin {
     fn build(&self, app: &mut App) {
         app
             // events
+            .init_resource::<RunData>()
+            .add_event::<LoadRunEvent>()
             .add_event::<LoadLevelEvent>()
             // systems
             .add_systems(OnEnter(AppState::Game), test_loading.after(spawn_player))
-            .add_systems(Update, handle_loadlevelevent.run_if(in_state(AppState::Game)))
+            .add_systems(Update, (
+                handle_loadrunevent,
+                handle_loadlevelevent
+            ).run_if(
+                in_state(AppState::Game)
+            ))
             .add_systems( OnExit(AppState::Game), despawn_level)
             //.
             ;
     }
 }
 
-// ==== EVENT & EVENT HANDLING HANDLING ====
+// ==== RUN & EVENT HANDLING ====
 
+#[derive(Event)]
+pub struct LoadRunEvent {
+    pub path: String,
+}
 
 #[derive(Event)]
 pub struct LoadLevelEvent {
-    path: String,
+    pub path: String,
 }
 
-pub fn handle_loadlevelevent (
+pub fn handle_loadrunevent(
+    mut event_read: EventReader<LoadRunEvent>,
+    mut event_write: EventWriter<LoadLevelEvent>,
+    mut run_resource: ResMut<RunData>,
+) {
+    if let Some(event) = event_read.read().last() {
+        // check for dir and number of levels
+        println!("[PRELOADER] Loading run at {}...", &event.path);
+        match read_dir(&event.path.to_string()) {
+            Ok(ls) => {
+                print!(" Success!");
+                run_resource.len = ls.count() - 1;
+                run_resource.next = NextLevel::Next(0);
+                run_resource.path = event.path.to_owned();
+            }
+            Err(e) => {
+                println!(
+                    " Failure. \n Couldn't read directory content due {}",
+                    e.to_string()
+                )
+            }
+        }
+        // check if given path for info file is valid
+        match File::open(event.path.to_string() + "/info") {
+            Ok(mut f) => {
+                println!(
+                    "[PRELOADER] Opened file at {} \n Loading data into buffer...",
+                    &event.path
+                );
+                // Load data into a buffer -> handle error case
+                let mut buf = String::new();
+                match f.read_to_string(&mut buf) {
+                    Ok(_) => print!(" Success!"),
+                    Err(e) => {
+                        print!(" Failure. \n Couldn't read data due {}", e.to_string());
+                        // TODO Error message event
+                    }
+                };
+                run_resource.author =
+                    match buf.split_ascii_whitespace().collect::<Vec<&str>>().get(1) {
+                        Some(name) => name,
+                        None => "unknown",
+                    }
+                    .to_string();
+            }
+            Err(e) => {
+                println!(
+                    "[PRELOADER] Cannot open file at {} due {}",
+                    &event.path,
+                    &e.to_string()
+                );
+            }
+        }
+        // load first level
+        event_write.send(LoadLevelEvent {
+            path: format!("{}/0",&event.path)
+        });
+    }
+}
+
+pub fn handle_loadlevelevent(
     mut event_read: EventReader<LoadLevelEvent>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut player_query: Query<(&mut Transform, &mut Speed), With<PlayerComponent>>,
     level_query: Query<Entity, With<Level>>,
-    mut score_resource: ResMut<Score>
+    mut score_resource: ResMut<Score>,
+    mut run_resource: ResMut<RunData>
 ) {
     if let Some(e) = event_read.read().last() {
         if let Ok(level_entity) = level_query.get_single() {
@@ -66,7 +156,7 @@ pub fn handle_loadlevelevent (
             commands.entity(level_entity).despawn_recursive();
         }
         if let Ok((mut transform, mut speed)) = player_query.get_single_mut() {
-            println!("[LOADER] Starting loading of test level ./assets/levels/og4/0");
+            println!("[LOADER] Starting loading of level {}", &e.path);
             let coin_count = spawn_level(
                 e.path.clone(),
                 commands,
@@ -76,7 +166,20 @@ pub fn handle_loadlevelevent (
                 &mut speed,
             );
             score_resource.needed = coin_count;
-            println!("Level score requirement (score.needed) set to {}",score_resource.needed);
+            println!(
+                "Level score requirement (score.needed) set to {}",
+                score_resource.needed
+            );
+            // This code shouldn't run when finish was reached, only one case has to be covered.
+            if let NextLevel::Next(u) = run_resource.next {
+                // if this level (u) is last -> set to finish
+                // otherwise set it to next(u+1)
+                run_resource.next = if u==run_resource.len-1 {
+                    NextLevel::Finish
+                }else{
+                    NextLevel::Next(u+1)
+                };
+            }
         } else {
             println!("[LOADER] Couldn't load a level: No player entity");
         };
@@ -85,11 +188,9 @@ pub fn handle_loadlevelevent (
 
 // ==== SYSTEMS ====
 
-pub fn test_loading(
-    mut event_writer: EventWriter<LoadLevelEvent>,
-) {
-    event_writer.send(LoadLevelEvent {
-        path: "./assets/levels/og4/0".to_string()
+pub fn test_loading(mut event_writer: EventWriter<LoadRunEvent>) {
+    event_writer.send(LoadRunEvent {
+        path: "./assets/levels/og4".to_string(),
     });
 }
 
@@ -114,7 +215,7 @@ pub enum LevelObject {
     /// pos
     Coin(Vec2),
     /// pos and size
-    Door(Vec2,Vec2),
+    Door(Vec2, Vec2),
     /// pos
     PlayerPos(Vec2),
 }
@@ -185,7 +286,7 @@ pub fn spawn_level(
                 transform: Transform::from_xyz(0.0, 0.0, 0.0),
                 ..default()
             },
-            Level
+            Level,
         ))
         .with_children(|parent| {
             let data = load_level_data(path, &legacy_loading::parse_line);
@@ -216,22 +317,18 @@ pub fn spawn_level(
                                 0: Vec2::new(COIN_SIZE * 2.0, COIN_SIZE * 2.0),
                             },
                         ));
-                        coin_count+=1;
+                        coin_count += 1;
                     }
                     LevelObject::Door(pos, size) => {
                         parent.spawn((
                             MaterialMesh2dBundle {
-                                mesh: Mesh2dHandle(
-                                    meshes.add(Rectangle::new(size.x, size.y)),
-                                ),
+                                mesh: Mesh2dHandle(meshes.add(Rectangle::new(size.x, size.y))),
                                 material: materials.add(Color::ORANGE),
                                 transform: Transform::from_xyz(pos.x, pos.y, 0.0),
                                 ..default()
                             },
                             DoorComponent,
-                            Size {
-                                0: size,
-                            },
+                            Size { 0: size },
                         ));
                     }
                     LevelObject::PlayerPos(pos) => {
@@ -243,7 +340,7 @@ pub fn spawn_level(
                 }
             }
         });
-        coin_count
+    coin_count
 }
 
 pub struct LevelData {
@@ -300,7 +397,7 @@ pub fn get_levels_data() -> Vec<LevelData> {
 }
 
 mod legacy_loading {
-    use super::{LevelObject, COIN_SIZE, LEGACY_SCALE, PLAYER_SIZE};
+    use super::{LevelObject, LEGACY_SCALE, PLAYER_SIZE};
     use bevy::prelude::*;
 
     pub fn parse_line(text: &str, number: usize) -> Option<LevelObject> {
@@ -317,20 +414,12 @@ mod legacy_loading {
             }
             "COIN" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
-                Some(LevelObject::Coin(fix_aligment(
-                    pos,
-                    Vec2::new(20.0,20.0),
-                )))
+                Some(LevelObject::Coin(fix_aligment(pos, Vec2::new(20.0, 20.0))))
             }
             "DOOR" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());
                 let size: Vec2 = Vec2::new(segs[3].parse().unwrap(), segs[4].parse().unwrap());
-                Some(LevelObject::Door(fix_aligment(
-                    pos,
-                    size
-                ),
-                    size*2.0
-                ))
+                Some(LevelObject::Door(fix_aligment(pos, size), size * 2.0))
             }
             "PLAYER_POS" => {
                 let pos: Vec2 = Vec2::new(segs[1].parse().unwrap(), segs[2].parse().unwrap());

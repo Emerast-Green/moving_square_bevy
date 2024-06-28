@@ -1,6 +1,6 @@
 [package]
 name = "game"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,8 +16,8 @@ linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 # for Windows
-[target.x86_64-pc-windows-gnu]
-linker = "rust-lld.exe"
+#[target.x86_64-pc-windows-gnu]
+#linker = "rust-lld.exe"
 
 # Dependency optimilations
 [profile.dev.package."*"]
@@ -26,3 +26,4 @@ opt-level = 3
 # Small optimilzatio in debug
 [profile.dev]
 opt-level = 1
+
