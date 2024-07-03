@@ -1,8 +1,8 @@
 
-use bevy::{prelude::*, time::Stopwatch};
+use bevy::{prelude::*, time::Stopwatch, utils::hashbrown::Equivalent};
 
 use crate::{
-    menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE}, AppState
+    menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE}, AppState, SimulationState
 };
 
 use super::coin::Score;
@@ -122,10 +122,13 @@ pub fn update_score_label(
 
 pub fn update_time(
     mut time_ui_query: Query<(&mut Text, &mut HubPlayerTime), With<HubPlayerTime>>,
-    game_time: Res<Time>
+    game_time: Res<Time>,
+    simulation_state: Res<State<SimulationState>>,
 ) {
     if let Ok((mut text, mut time)) = time_ui_query.get_single_mut() {
-        time.time.tick(game_time.delta());
+        if simulation_state.equivalent(&SimulationState::Running) {
+            time.time.tick(game_time.delta());
+        };
         text.sections[0].value = ((time.time.elapsed_secs()*100.0).floor()/100.0).to_string();
     }
 }
