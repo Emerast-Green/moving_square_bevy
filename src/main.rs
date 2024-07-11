@@ -22,6 +22,7 @@ fn main() {
         // States
         .init_state::<AppState>()
         .init_state::<SimulationState>()
+        .init_state::<HudState>()
         // FixedUpdate Time
         .insert_resource(Time::<Fixed>::from_seconds(1.0 / 60.0))
         .add_systems(Startup, spawn_camera)
@@ -53,4 +54,12 @@ pub enum SimulationState {
     #[default]
     Running,
     Paused,
+}
+
+#[derive(Default, States, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum HudState {
+    #[default]
+    None,
+    Pause,
+    Score,
 }

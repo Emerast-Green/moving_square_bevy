@@ -14,7 +14,7 @@ mod pause_menu;
 pub use pause_menu::*;
 
 pub use crate::data::*;
-use crate::{AppState, SimulationState};
+use crate::{AppState, HudState, SimulationState};
 
 // ==== PLUGIN ====
 
@@ -85,6 +85,8 @@ pub fn collide(p1: Vec2, s1: Vec2, p2: Vec2, s2: Vec2) -> bool {
 
 pub fn start_running(
     mut simulation_state_next_state: ResMut<NextState<SimulationState>>,
+    mut hud_state_next_state: ResMut<NextState<HudState>> 
 ) {
-    simulation_state_next_state.set(SimulationState::Running)
+    simulation_state_next_state.set(SimulationState::Running);
+    hud_state_next_state.set(HudState::None)
 }

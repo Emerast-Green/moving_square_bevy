@@ -1,8 +1,8 @@
 
-use bevy::{prelude::*, time::Stopwatch};
+use bevy::{prelude::*, time::Stopwatch, utils::hashbrown::Equivalent};
 
 use crate::{
-    menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE}, AppState
+    menu::styles::{get_title_text_style, COUNTER_STARS_STYLE, GAME_UI_STYLE}, AppState, HudState, SimulationState
 };
 
 use super::coin::Score;
@@ -16,6 +16,10 @@ impl Plugin for HudPlugin {
             .add_systems(OnEnter(AppState::Game), spawn_player_hud)
             .add_systems(Update, (update_score_label,update_time).run_if(in_state(AppState::Game)))
             .add_systems(OnExit(AppState::Game), despawn_player_hud)
+
+            // hide during score screen
+            .add_systems(OnExit(HudState::Score), spawn_player_hud)
+            .add_systems(OnEnter(HudState::Score), despawn_player_hud)
             //.
             ;
     }
@@ -31,7 +35,7 @@ pub struct PlayerHud;
 pub struct HudPlayerScore;
 
 #[derive(Component)]
-pub struct HubPlayerTime {
+pub struct HudPlayerTime {
     time: Stopwatch
 }
 
@@ -91,7 +95,7 @@ pub fn build_player_hud(commands: &mut Commands, asset_server: &Res<AssetServer>
                             },
                             ..default()
                         },
-                        HubPlayerTime {
+                        HudPlayerTime {
                             time: Stopwatch::new()
                         },
                     ));
@@ -121,11 +125,14 @@ pub fn update_score_label(
 }
 
 pub fn update_time(
-    mut time_ui_query: Query<(&mut Text, &mut HubPlayerTime), With<HubPlayerTime>>,
-    game_time: Res<Time>
+    mut time_ui_query: Query<(&mut Text, &mut HudPlayerTime), With<HudPlayerTime>>,
+    game_time: Res<Time>,
+    simulation_state: Res<State<SimulationState>>,
 ) {
     if let Ok((mut text, mut time)) = time_ui_query.get_single_mut() {
-        time.time.tick(game_time.delta());
-        text.sections[0].value = ((time.time.elapsed_secs()*100.0).floor()/100.0).to_string();
+        if simulation_state.equivalent(&SimulationState::Running) {
+            time.time.tick(game_time.delta());
+        };
+        text.sections[0].value = ((time.time.elapsed_secs()*100.0).floor()/100.0).to_string()+"s";
     }
 }

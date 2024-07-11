@@ -92,7 +92,8 @@ pub fn handle_loadrunevent(
             Ok(ls) => {
                 print!(" Success!");
                 run_resource.len = ls.count() - 1;
-                run_resource.next = NextLevel::Next(0);
+                // TODO: SET LATER TO NextLevel::Next(3)
+                run_resource.next = NextLevel::Next(3);
                 run_resource.path = event.path.to_owned();
             }
             Err(e) => {
@@ -115,7 +116,7 @@ pub fn handle_loadrunevent(
                     Ok(_) => print!(" Success!"),
                     Err(e) => {
                         print!(" Failure. \n Couldn't read data due {}", e.to_string());
-                        // TODO Error message event
+                        // TODO: Error message event
                     }
                 };
                 run_resource.author =

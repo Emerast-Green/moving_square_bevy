@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{game::{collide, LoadLevelEvent, PlayerComponent, RunData, Size}, AppState, SimulationState};
+use crate::{game::{collide, LoadLevelEvent, PlayerComponent, RunData, Size}, menu::SpawnScoreMenuEvent, AppState, SimulationState};
 
 use super::coin::Score;
 
@@ -28,7 +28,9 @@ fn door_player_collide(
     coin_query: Query<(&Transform, &Size), (With<DoorComponent>, Without<PlayerComponent>)>,
     mut score_resource: ResMut<Score>,
     run_resource: Res<RunData>,
-    mut event_writer: EventWriter<LoadLevelEvent>,
+    mut event_writer_next: EventWriter<LoadLevelEvent>,
+    mut event_writer_menu: EventWriter<SpawnScoreMenuEvent>,
+    game_time: Res<Time>,
 ) {
     if let Ok((pt, ps)) = player_query.get_single_mut() {
         for (ot, os) in coin_query.iter() {
@@ -36,20 +38,21 @@ fn door_player_collide(
                 && score_resource.current >= score_resource.needed // greater or equal allows for levels with variable paths
             {
                 println!("Level Won");
-                score_resource.current = 0;
                 match &run_resource.next {
                     crate::game::loader::NextLevel::Next(number) => {
-                        event_writer.send(LoadLevelEvent {
+                        event_writer_next.send(LoadLevelEvent {
                             path: format!("{}/{}",run_resource.path,number)
                         });
                     }
                     crate::game::loader::NextLevel::Finish => {
-                        // TODO: Implement win window properly
-                        event_writer.send(LoadLevelEvent {
-                            path: format!("{}/0",run_resource.path)
+                        event_writer_menu.send( SpawnScoreMenuEvent {
+                            points: score_resource.current,
+                            time: game_time.elapsed_seconds()
                         });
                     }
                 }
+                // reset points
+                score_resource.current = 0;
             }
         }
     }

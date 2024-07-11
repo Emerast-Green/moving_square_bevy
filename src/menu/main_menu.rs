@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::{
-    interactions::{interact_with_exit_button, interact_with_play_button},
+    interactions::{interact_with_exit_button, interact_with_play_button, menu_buttons},
     styles::*,
 };
 use crate::AppState;
@@ -23,15 +23,6 @@ impl Plugin for MainMenuPlugin {
 #[derive(Component)]
 pub struct MainMenuComponent;
 
-pub mod main_menu_buttons {
-    use bevy::prelude::Component;
-
-    #[derive(Component)]
-    pub struct PlayButtonComponent;
-    
-    #[derive(Component)]
-    pub struct ExitButtonComponent;
-}
 
 
 pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -65,7 +56,7 @@ pub fn build_main_menu(commands: &mut Commands, asset_server: &Res<AssetServer>)
                         background_color: NORMAL_BUTTON_COLOR.into(),
                         ..default()
                     },
-                    main_menu_buttons::PlayButtonComponent,
+                    menu_buttons::PlayButtonComponent,
                 ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
@@ -88,7 +79,7 @@ pub fn build_main_menu(commands: &mut Commands, asset_server: &Res<AssetServer>)
                         background_color: NORMAL_BUTTON_COLOR.into(),
                         ..default()
                     },
-                    main_menu_buttons::ExitButtonComponent,
+                    menu_buttons::ExitButtonComponent,
                 ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {

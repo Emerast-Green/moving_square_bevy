@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{data::get_levels_data, AppState};
+use crate::{data::get_levels_data, menu::interactions::menu_buttons, AppState};
 
 
 
@@ -21,13 +21,6 @@ impl Plugin for LevelsMenuPlugin {
     }
 }
 
-pub mod levels_menu_buttons {
-    use bevy::prelude::Component;
-
-    #[derive(Component)]
-    pub struct BackButtonComponent;
-
-}
 
 #[derive(Component)]
 pub struct LevelsMenuComponent;
@@ -63,7 +56,7 @@ pub fn build_levels_menu(commands: &mut Commands, asset_server: &Res<AssetServer
                         background_color: NORMAL_BUTTON_COLOR.into(),
                         ..default()
                     },
-                    levels_menu_buttons::BackButtonComponent,
+                    menu_buttons::BackButtonComponent,
                 ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
